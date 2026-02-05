@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+<meta charset="UTF-8">
+<title>حل مشاكل Excel بالذكاء الصناعي – نسخة WebView</title>
+<style>
+body { font-family: Arial, sans-serif; direction: rtl; padding: 20px; background: #f9f9f9; }
+h2 { color: #0b5394; }
+button { padding: 10px 20px; margin: 10px 0; background: #0b5394; color: white; border: none; cursor: pointer; border-radius: 5px; }
+button:hover { background: #073763; }
+#results { margin-top: 20px; background: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 0 5px rgba(0,0,0,0.1); white-space: pre-wrap; }
+textarea { width: 100%; padding: 10px; margin-top: 5px; border-radius: 5px; border: 1px solid #ccc; }
+input[type=file] { margin: 10px 0; }
+.loading { color: green; font-weight: bold; }
+</style>
+</head>
+<body>
+<h2>حل مشاكل Excel بالذكاء الصناعي – WebView</h2>
+
+<label>اختر ملف Excel:</label>
+<input type="file" id="excelFile" accept=".xlsx,.xls"><br>
+
+<label>اكتب مشكلتك أو المطلوب تحليله:</label><br>
+<textarea id="userIssue" rows="4" placeholder="مثال: تحليل المبيعات حسب الشهر، اقتراح رسوم بيانية، أو حل الأخطاء"></textarea><br>
+
+<button onclick="analyzeExcel()">حل المشكلة</button>
+<button id="downloadBtn" style="display:none;">تحميل الملف بعد التحليل</button>
+
+<div id="results"></div>
+
+<script>
+let analyzedData = null;
+
+async function analyzeExcel() {
+    const fileInput = document.getElementById('excelFile');
+    const issue = document.getElementById('userIssue').value.trim();
+    const resultsDiv = document.getElementById('results');
+    const downloadBtn = document.getElementById('downloadBtn');
+
+    if(fileInput.files.length === 0){
+        alert("اختر ملف Excel أولاً");
+        return;
+    }
+    if(issue === ""){
+        alert("اكتب مشكلتك أولاً");
+        return;
+    }
+
+    resultsDiv.innerHTML = "<p class='loading'>جاري التحليل… انتظر لحظة</p>";
+    downloadBtn.style.display = "none";
+
+    const file = fileInput.files[0];
+    const reader = new FileReader();
+    reader.onload = async function(e){
+        const fileData = e.target.result;
+
+        try {
+            const response = await fetch('https://api.openai.com/v1/responses', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer YOUR_OPENAI_API_KEY' // ضع مفتاحك هنا
+                },
+                body: JSON.stringify({
+                    model: "gpt-4.1-mini",
+                    input: [
+                        {
+                            role: "user",
+                            content: 
+`هذا ملف Excel بالـ Base64: ${fileData}
+
+المشكلة أو المطلوب:
+${issue}
+
+المطلوب: 
+1- تحليل الأعمدة والصفوف تلقائي.
+2- اقتراح معادلات Excel جاهزة.
+3- اقتراح رسوم بيانية مناسبة.
+4- اعطاء نصائح لتحسين الملف.
+5- إرجاع مثال على جدول أو رسم بعد التحليل.
+6- إذا أمكن، أعد الملف مع التعديلات المقترحة.` 
+                        }
+                    ]
+                })
+            });
+
+            const data = await response.json();
+            const outputText = data.output_text || JSON.stringify(data, null, 2);
+
+            resultsDiv.innerHTML = "<b>النتيجة:</b><br>" + outputText.replace(/\n/g,"<br>");
+            analyzedData = fileData; // حفظ البيانات لتحميلها إذا أضاف AI تعديلات
+            downloadBtn.style.display = "inline-block";
+        } catch(err) {
+            resultsDiv.innerHTML = "<span style='color:red;'>حدث خطأ أثناء التحليل: " + err + "</span>";
+        }
+    };
+    reader.readAsDataURL(file); 
+}
+
+// تحميل الملف بعد التحليل
+document.getElementById('downloadBtn').addEventListener('click', () => {
+    if(!analyzedData) return;
+    const a = document.createElement('a');
+    a.href = analyzedData;
+    a.download = "Excel_بعد_التحليل.xlsx";
+    a.click();
+});
+</script>
+</body>
+</html>
